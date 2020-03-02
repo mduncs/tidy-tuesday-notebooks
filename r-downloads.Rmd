@@ -1,0 +1,110 @@
+---
+title: "R Project Downloads"
+output: html_notebook
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+```{r}
+library(tidyverse)
+library(scales)
+library(lubridate)
+library(countrycode)
+
+r_downloads_year_raw <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2018/2018-10-30/r_downloads_year.csv")
+
+r_downloads_year <- r_downloads_year_raw %>%
+  select(-X1)
+```
+
+```{r}
+#View by Whole Year
+r_downloads_year %>%
+  count(date) %>%
+  ggplot(aes(date,n)) +
+  geom_line() +
+  expand_limits(y=0) +
+  labs(y="R downloads per day")
+
+#View by day
+r_downloads_year %>%
+  count(date) %>%
+  group_by(weekday = wday(date,label=TRUE)) %>%
+  summarize(average=  mean(n)) %>%
+  ggplot(aes(weekday, average)) +
+  geom_line(group = 1) +
+  expand_limits(y=0) +
+  labs(y="Avg download per day")
+  
+#View by week
+r_downloads_year %>%
+  count(week = floor_date(date, "week")) %>%
+  filter(week > min(week), week < max(week)) %>%
+  ggplot(aes(week,n)) +
+  geom_line() +
+  labs(y="Downloads per week")
+
+#View by hour
+r_downloads_year%>%
+  mutate(country = countrycode(country,"iso2c","country.name")) %>%
+  filter(!is.na(country)) %>%
+  count(hour=hour(time),
+    country=fct_lump(country,8)) %>%
+  ggplot(aes(hour,n)) +
+  geom_line() +
+  expand_limits(y=0) +
+  labs(y="# of Downloads",x="Time (UTC)") +
+  facet_wrap(~ country,scale="free_y")
+  
+```
+
+```{r}
+#Who is downloading 
+r_downloads_year%>%
+  count(country=countrycode(country,"iso2c","country.name"),sort=TRUE) %>%
+  mutate(percent = n/sum(n)) %>%
+  head(25) %>%
+  filter(!is.na(country)) %>%
+  mutate(country = fct_reorder(country,percent)) %>%
+  ggplot(aes(country,percent)) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(labels = percent_format())+
+  labs(title="Which countries install R as a percent of total downloads")
+```
+
+```{r}
+#What version are they downloading
+r_downloads_year %>%
+  mutate(version=fct_lump(version,5)) %>%
+  count(date,version)%>%
+  mutate(vers_percent = 100*(n/sum(n))) %>%
+  ggplot(aes(date,vers_percent,fill=version))+
+  geom_bar(position = "fill",stat="identity",) +
+  scale_fill_brewer(palette = "Spectral") +
+  labs(y="Percent",x="Date")+
+  ggtitle("R Downloads by Version") +
+  theme(plot.title = element_text(hjust=0.5))
+  
+```
+
+
+```{r}
+#IP, who installs the mosts
+r_downloads_year %>%
+  count(ip_id,sort = TRUE)%>%
+  ggplot(aes(n)) +
+  geom_histogram()
+
+r_downloads_year %>%
+  count(ip_id,sort = TRUE)%>%
+  ggplot(aes(n)) +
+  geom_histogram()
+
+```
+
+
